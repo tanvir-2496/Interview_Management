@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #f6f8f7;
+  --text: #1f2937;
+  --card: #ffffff;
+}
+
+body {
+  background: radial-gradient(circle at top left, #e8f3ec, #f6f8f7 45%);
+  color: var(--text);
+}
+
+.card {
+  @apply rounded-xl bg-white shadow-sm border border-slate-200 p-4;
+}
+
+input, select, textarea {
+  @apply border border-slate-300 rounded-md px-3 py-2 w-full;
+}
+
+button {
+  @apply rounded-md px-3 py-2;
+}
