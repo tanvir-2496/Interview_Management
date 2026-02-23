@@ -34,12 +34,12 @@ export default function CareersPage() {
     <div className="space-y-8">
       <section className="space-y-4">
         <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-cyan-500 to-sky-500 p-4 text-white shadow-lg">
-          <div className="flex items-center gap-3">
+          <Link href="/" className="inline-flex items-center gap-3">
             <div className="rounded-xl bg-white/20 p-2">
-              <Image src="/naas-logo.png" alt="NAAS Logo" width={36} height={36} />
+              <Image src="/NAAS-Logo.png" alt="NAAS Logo" width={36} height={36} />
             </div>
             <h1 className="text-2xl font-bold md:text-4xl">NAAS Solutions Limited</h1>
-          </div>
+          </Link>
         </div>
 
         <div className="relative">
@@ -51,7 +51,7 @@ export default function CareersPage() {
           <div className="mx-3 -mt-8 rounded-2xl bg-white p-5 shadow-lg ring-1 ring-slate-200 md:mx-8 md:-mt-12 md:p-7">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <Image src="/naas-logo.png" alt="NAAS Logo" width={64} height={64} className="rounded-lg ring-1 ring-slate-200" />
+                <Image src="/NAAS-Logo.png" alt="NAAS Logo" width={64} height={64} className="rounded-lg ring-1 ring-slate-200" />
                 <div>
                   <h2 className="text-3xl font-bold text-slate-900">NAAS Solutions Limited</h2>
                   <p className="text-sm text-slate-600">Dhaka, Bangladesh</p>

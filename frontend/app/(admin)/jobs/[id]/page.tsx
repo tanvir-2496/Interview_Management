@@ -8,7 +8,8 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
   const [job, setJob] = useState<any>();
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const { register, handleSubmit, reset } = useForm<any>();
+  const { register, handleSubmit, reset, watch } = useForm<any>();
+  const isSalaryNegotiable = watch("isSalaryNegotiable");
 
   const load = async () => {
     const r = await api.get(`/api/jobs/${params.id}`);
@@ -38,13 +39,21 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
     setError("");
     setMessage("");
     try {
+      const isNegotiable = !!v.isSalaryNegotiable;
+      const salaryMin = isNegotiable ? 0 : Number(v.salaryRangeMin);
+      const salaryMax = isNegotiable ? 0 : Number(v.salaryRangeMax);
+      if (!isNegotiable && salaryMax < salaryMin) {
+        setError("Salary Max must be greater than or equal to Salary Min.");
+        return;
+      }
       const payload = {
         ...v,
+        isSalaryNegotiable: isNegotiable,
         locationType: Number(v.locationType),
         employmentType: Number(v.employmentType),
         experienceLevel: Number(v.experienceLevel),
-        salaryRangeMin: Number(v.salaryRangeMin),
-        salaryRangeMax: Number(v.salaryRangeMax),
+        salaryRangeMin: salaryMin,
+        salaryRangeMax: salaryMax,
         vacancyCount: Number(v.vacancyCount),
         applicationDeadlineUtc: v.applicationDeadlineUtc ? new Date(v.applicationDeadlineUtc).toISOString() : null
       };
@@ -69,6 +78,7 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
       <form className="grid gap-3 md:grid-cols-2" onSubmit={onSave}>
         <input placeholder="Title" {...register("title")} />
         <input placeholder="Department" {...register("department")} />
+        <input className="md:col-span-2" placeholder="Skills (comma separated): C#, .Net, Next.Js, Java" {...register("skillsCsv")} />
         <input placeholder="Job Code" {...register("jobCode")} />
         <input placeholder="Location" {...register("locationText")} />
         <select {...register("employmentType")}>
@@ -89,8 +99,12 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
           <option value={3}>Senior</option>
           <option value={4}>Lead</option>
         </select>
-        <input type="number" placeholder="Salary Min" {...register("salaryRangeMin")} />
-        <input type="number" placeholder="Salary Max" {...register("salaryRangeMax")} />
+        <input type="number" placeholder="Salary Min" disabled={isSalaryNegotiable} {...register("salaryRangeMin")} />
+        <input type="number" placeholder="Salary Max" disabled={isSalaryNegotiable} {...register("salaryRangeMax")} />
+        <label className="flex items-center gap-2 text-sm">
+          <input className="h-4 w-4 !w-4 !px-0 !py-0" type="checkbox" {...register("isSalaryNegotiable")} />
+          <span>Salary Negotiable</span>
+        </label>
         <input type="number" placeholder="Vacancy" {...register("vacancyCount")} />
         <div className="md:col-span-2">
           <textarea placeholder="Description HTML" rows={5} {...register("descriptionHtml")} />

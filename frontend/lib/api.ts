@@ -2,8 +2,16 @@
 
 import axios from "axios";
 
+function getApiBaseUrl() {
+  if (process.env.NEXT_PUBLIC_API_BASE_URL) return process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (typeof window !== "undefined") {
+    return `${window.location.protocol}//${window.location.hostname}:5000`;
+  }
+  return "http://localhost:5000";
+}
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000"
+  baseURL: getApiBaseUrl()
 });
 
 api.interceptors.request.use((config) => {
@@ -32,7 +40,7 @@ api.interceptors.response.use(
 
       try {
         const res = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000"}/api/auth/refresh`,
+          `${getApiBaseUrl()}/api/auth/refresh`,
           { refreshToken }
         );
 

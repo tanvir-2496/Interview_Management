@@ -54,8 +54,10 @@ public class Job : BaseEntity
 {
     public string Title { get; set; } = string.Empty;
     public string Department { get; set; } = string.Empty;
+    public string SkillsCsv { get; set; } = string.Empty;
     public decimal SalaryRangeMin { get; set; }
     public decimal SalaryRangeMax { get; set; }
+    public bool IsSalaryNegotiable { get; set; }
     public LocationType LocationType { get; set; }
     public string LocationText { get; set; } = string.Empty;
     public EmploymentType EmploymentType { get; set; }
@@ -138,6 +140,7 @@ public class CandidateJobApplication : BaseEntity
     public Guid JobId { get; set; }
     public string CurrentStage { get; set; } = "Applied";
     public ApplicationStatus Status { get; set; } = ApplicationStatus.Applied;
+    public string ApplicationFormJson { get; set; } = "{}";
 }
 
 public class CandidateTimelineEvent : BaseEntity

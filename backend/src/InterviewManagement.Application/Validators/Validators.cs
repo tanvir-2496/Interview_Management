@@ -9,8 +9,13 @@ public class JobUpsertRequestValidator : AbstractValidator<JobUpsertRequest>
     {
         RuleFor(x => x.Title).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Department).NotEmpty();
-        RuleFor(x => x.SalaryRangeMin).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.SalaryRangeMax).GreaterThanOrEqualTo(x => x.SalaryRangeMin);
+        RuleFor(x => x.SkillsCsv).MaximumLength(1000);
+        RuleFor(x => x.SalaryRangeMin)
+            .GreaterThanOrEqualTo(0)
+            .When(x => !x.IsSalaryNegotiable);
+        RuleFor(x => x.SalaryRangeMax)
+            .GreaterThanOrEqualTo(x => x.SalaryRangeMin)
+            .When(x => !x.IsSalaryNegotiable);
         RuleFor(x => x.VacancyCount).GreaterThan(0);
     }
 }

@@ -5,6 +5,7 @@ using InterviewManagement.Domain.Enums;
 using InterviewManagement.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace InterviewManagement.WebApi.Controllers;
 
@@ -15,10 +16,18 @@ public class PublicJobsController(AppDbContext db, IFileStorageService fileStora
     public class PublicApplyFormRequest
     {
         public string FullName { get; set; } = string.Empty;
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
         public string Email { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
         public string Source { get; set; } = "Portal";
-        public bool OverrideDuplicate { get; set; }
+        public string? PersonalSummary { get; set; }
+        public string? IsBangladeshi { get; set; }
+        public string? DegreeProgram { get; set; }
+        public string? PassingYear { get; set; }
+        public string? InterviewedBefore { get; set; }
+        public string? ExperienceRange { get; set; }
+        public bool Consent { get; set; }
         public IFormFile Resume { get; set; } = null!;
     }
 
@@ -50,12 +59,19 @@ public class PublicJobsController(AppDbContext db, IFileStorageService fileStora
         if (!await virusScanner.IsSafeAsync(rs, ct)) return BadRequest("Unsafe file detected.");
 
         var duplicate = await db.Candidates.Where(x => x.Email == req.Email || x.Phone == req.Phone).FirstOrDefaultAsync(ct);
-        if (duplicate is not null && !req.OverrideDuplicate)
-            return Conflict(new { message = "Duplicate candidate exists. Set overrideDuplicate=true to attach application.", candidateId = duplicate.Id });
+
+        var fullName = string.IsNullOrWhiteSpace(req.FullName)
+            ? $"{req.FirstName} {req.LastName}".Trim()
+            : req.FullName.Trim();
+
+        if (string.IsNullOrWhiteSpace(fullName))
+            return BadRequest("Full name is required.");
+        if (!req.Consent)
+            return BadRequest("Consent is required.");
 
         var candidate = duplicate ?? new Candidate
         {
-            FullName = req.FullName,
+            FullName = fullName,
             Email = req.Email,
             Phone = req.Phone,
             Source = Enum.TryParse<CandidateSource>(req.Source, true, out var source) ? source : CandidateSource.Portal
@@ -79,7 +95,27 @@ public class PublicJobsController(AppDbContext db, IFileStorageService fileStora
             SizeInBytes = req.Resume.Length
         });
 
-        var app = new CandidateJobApplication { CandidateId = candidate.Id, JobId = id, CurrentStage = "Applied", Status = ApplicationStatus.Applied };
+        var applicationFormJson = JsonSerializer.Serialize(new
+        {
+            req.FirstName,
+            req.LastName,
+            req.PersonalSummary,
+            req.IsBangladeshi,
+            req.DegreeProgram,
+            req.PassingYear,
+            req.InterviewedBefore,
+            req.ExperienceRange,
+            req.Consent
+        });
+
+        var app = new CandidateJobApplication
+        {
+            CandidateId = candidate.Id,
+            JobId = id,
+            CurrentStage = "Applied",
+            Status = ApplicationStatus.Applied,
+            ApplicationFormJson = applicationFormJson
+        };
         db.CandidateJobApplications.Add(app);
         await db.SaveChangesAsync(ct);
 

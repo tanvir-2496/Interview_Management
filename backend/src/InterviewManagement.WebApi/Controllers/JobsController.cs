@@ -38,8 +38,10 @@ public class JobsController(AppDbContext db, ICurrentUserService currentUser) : 
         {
             Title = req.Title,
             Department = req.Department,
-            SalaryRangeMin = req.SalaryRangeMin,
-            SalaryRangeMax = req.SalaryRangeMax,
+            SkillsCsv = req.SkillsCsv,
+            SalaryRangeMin = req.IsSalaryNegotiable ? 0 : req.SalaryRangeMin,
+            SalaryRangeMax = req.IsSalaryNegotiable ? 0 : req.SalaryRangeMax,
+            IsSalaryNegotiable = req.IsSalaryNegotiable,
             LocationType = (LocationType)req.LocationType,
             LocationText = req.LocationText,
             EmploymentType = (EmploymentType)req.EmploymentType,
@@ -65,8 +67,10 @@ public class JobsController(AppDbContext db, ICurrentUserService currentUser) : 
         if (job is null) return NotFound();
         job.Title = req.Title;
         job.Department = req.Department;
-        job.SalaryRangeMin = req.SalaryRangeMin;
-        job.SalaryRangeMax = req.SalaryRangeMax;
+        job.SkillsCsv = req.SkillsCsv;
+        job.SalaryRangeMin = req.IsSalaryNegotiable ? 0 : req.SalaryRangeMin;
+        job.SalaryRangeMax = req.IsSalaryNegotiable ? 0 : req.SalaryRangeMax;
+        job.IsSalaryNegotiable = req.IsSalaryNegotiable;
         job.LocationType = (LocationType)req.LocationType;
         job.LocationText = req.LocationText;
         job.EmploymentType = (EmploymentType)req.EmploymentType;

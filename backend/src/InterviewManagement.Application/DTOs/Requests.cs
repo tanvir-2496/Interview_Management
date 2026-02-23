@@ -7,8 +7,10 @@ public record RefreshRequest(string RefreshToken);
 public record JobUpsertRequest(
     string Title,
     string Department,
+    string SkillsCsv,
     decimal SalaryRangeMin,
     decimal SalaryRangeMax,
+    bool IsSalaryNegotiable,
     int LocationType,
     string LocationText,
     int EmploymentType,

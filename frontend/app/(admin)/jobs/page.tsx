@@ -45,7 +45,12 @@ export default function JobsPage() {
     <div className="space-y-3">
       <div className="flex justify-between">
         <h1 className="text-2xl font-bold">All Job Posts</h1>
-        <Link href="/jobs/new" className="bg-brand-500 text-white">New Job</Link>
+        <Link
+          href="/jobs/new"
+          className="inline-flex items-center rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 hover:shadow"
+        >
+          New Job
+        </Link>
       </div>
       {error ? <div className="card text-red-600">{error}</div> : null}
 
