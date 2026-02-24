@@ -3,6 +3,7 @@ using System;
 using InterviewManagement.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace InterviewManagement.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260224073825_AddAppNotifications")]
+    partial class AddAppNotifications
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -126,15 +129,6 @@ namespace InterviewManagement.Infrastructure.Migrations
 
                     b.Property<string>("Phone")
                         .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("ReferredByEmail")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ReferredByEmployeeId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ReferredByName")
                         .HasColumnType("text");
 
                     b.Property<int>("ResumeParseStatus")

@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Image from "next/image";
 
 export default function LoginPage() {
   const { register, handleSubmit } = useForm<{ email: string; password: string }>();
@@ -60,12 +61,24 @@ export default function LoginPage() {
   });
 
   return (
-    <form className="card w-full max-w-sm space-y-3" onSubmit={onSubmit}>
-      <h1 className="text-xl font-bold">Login</h1>
-      {error ? <div className="text-red-600 text-sm">{error}</div> : null}
-      <input placeholder="Email" {...register("email")} />
-      <input placeholder="Password" type="password" {...register("password")} />
-      <button className="bg-brand-500 text-white" type="submit">Login</button>
+    <form className="card w-full max-w-md space-y-5 p-6" onSubmit={onSubmit}>
+      <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
+        <div className="rounded-lg bg-cyan-50 p-2 ring-1 ring-cyan-100">
+          <Image src="/NAAS-Logo.png" alt="NAAS Logo" width={42} height={42} />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">NAAS Solutions Limited</h1>
+          <p className="text-sm text-slate-500">Interview Management Portal</p>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-slate-800">Login</h2>
+        {error ? <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-100">{error}</div> : null}
+        <input placeholder="Email" {...register("email")} />
+        <input placeholder="Password" type="password" {...register("password")} />
+        <button className="w-full bg-brand-500 text-white hover:bg-brand-700" type="submit">Login</button>
+      </div>
     </form>
   );
 }

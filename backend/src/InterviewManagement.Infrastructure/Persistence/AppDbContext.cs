@@ -14,6 +14,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Job> Jobs => Set<Job>();
     public DbSet<JobStatusHistory> JobStatusHistories => Set<JobStatusHistory>();
     public DbSet<JobApprovalAction> JobApprovalActions => Set<JobApprovalAction>();
+    public DbSet<AppNotification> AppNotifications => Set<AppNotification>();
     public DbSet<JobStageConfig> JobStageConfigs => Set<JobStageConfig>();
     public DbSet<Candidate> Candidates => Set<Candidate>();
     public DbSet<CandidateResume> CandidateResumes => Set<CandidateResume>();
@@ -41,6 +42,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<Permission>().HasIndex(x => x.Code).IsUnique();
         modelBuilder.Entity<Job>().HasIndex(x => x.JobCode).IsUnique();
         modelBuilder.Entity<EmailTemplate>().HasIndex(x => x.TemplateKey).IsUnique();
+        modelBuilder.Entity<AppNotification>().HasIndex(x => new { x.UserId, x.IsRead, x.CreatedAtUtc });
 
         modelBuilder.Entity<InterviewSessionInterviewer>()
             .HasIndex(x => new { x.InterviewSessionId, x.InterviewerId }).IsUnique();

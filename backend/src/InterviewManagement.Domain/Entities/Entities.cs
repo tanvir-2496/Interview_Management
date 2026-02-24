@@ -91,6 +91,18 @@ public class JobApprovalAction : BaseEntity
     public string? Reason { get; set; }
 }
 
+public class AppNotification : BaseEntity
+{
+    public Guid UserId { get; set; }
+    public string Type { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+    public string EntityName { get; set; } = string.Empty;
+    public Guid? EntityId { get; set; }
+    public bool IsRead { get; set; }
+    public DateTime? ReadAtUtc { get; set; }
+}
+
 public class JobStageConfig : BaseEntity
 {
     public Guid JobId { get; set; }
@@ -105,6 +117,9 @@ public class Candidate : BaseEntity
     public string Email { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
     public CandidateSource Source { get; set; } = CandidateSource.Portal;
+    public string? ReferredByName { get; set; }
+    public string? ReferredByEmail { get; set; }
+    public string? ReferredByEmployeeId { get; set; }
     public int YearsOfExperience { get; set; }
     public ParseStatus ResumeParseStatus { get; set; } = ParseStatus.Pending;
     public DateTime? LastParsedAtUtc { get; set; }

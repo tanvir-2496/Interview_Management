@@ -119,8 +119,6 @@ export default function JobDetailPage({ params }: { params: { id: string } }) {
 
       <div className="flex gap-2 flex-wrap">
         <button className="bg-brand-500 text-white" onClick={() => action("submit-for-approval")}>Submit For Approval</button>
-        <button className="bg-brand-500 text-white" onClick={() => action("approve")}>Approve</button>
-        <button className="bg-slate-700 text-white" onClick={() => action("reject", { reason: "Needs updates" })}>Reject</button>
         <button className="bg-red-600 text-white" onClick={() => action("close")}>Close</button>
       </div>
     </div>
