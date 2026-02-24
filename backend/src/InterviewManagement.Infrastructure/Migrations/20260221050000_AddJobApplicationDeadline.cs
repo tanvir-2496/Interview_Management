@@ -5,22 +5,23 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace InterviewManagement.Infrastructure.Migrations
 {
+    [Migration("20260221050000_AddJobApplicationDeadline")]
     public partial class AddJobApplicationDeadline : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<DateTime>(
-                name: "ApplicationDeadlineUtc",
-                table: "Jobs",
-                type: "timestamp with time zone",
-                nullable: true);
+            migrationBuilder.Sql("""
+                ALTER TABLE "Jobs"
+                ADD COLUMN IF NOT EXISTS "ApplicationDeadlineUtc" timestamp with time zone NULL;
+                """);
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "ApplicationDeadlineUtc",
-                table: "Jobs");
+            migrationBuilder.Sql("""
+                ALTER TABLE "Jobs"
+                DROP COLUMN IF EXISTS "ApplicationDeadlineUtc";
+                """);
         }
     }
 }

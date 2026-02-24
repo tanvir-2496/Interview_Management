@@ -23,13 +23,13 @@ pnpm-debug.log*
 # ------------------------------
 # Environment / Secrets
 # ------------------------------
-#.env
-#.env.*
-#!.env.example
-#**/.env
-#**/.env.*
-#!**/.env.example
-#*.pem
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
 
 # ------------------------------
 # Node / Next.js
