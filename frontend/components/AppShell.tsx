@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getPermissions } from "@/lib/utils";
+import { defaultCompanyProfile, loadPublicCompanyProfile } from "@/lib/companyProfile";
 
 export default function AppShell({ children, interviewerOnly = false }: { children: React.ReactNode; interviewerOnly?: boolean }) {
   const path = usePathname();
   const router = useRouter();
+  const [company, setCompany] = useState(defaultCompanyProfile);
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
@@ -17,6 +19,10 @@ export default function AppShell({ children, interviewerOnly = false }: { childr
     if (interviewerOnly && !isInterviewer) router.replace("/dashboard");
     if (!interviewerOnly && isInterviewer && path.startsWith("/dashboard")) router.replace("/interviewer");
   }, [interviewerOnly, path, router]);
+
+  useEffect(() => {
+    loadPublicCompanyProfile().then(setCompany).catch(() => setCompany(defaultCompanyProfile));
+  }, []);
 
   const logout = () => {
     localStorage.clear();
@@ -43,21 +49,32 @@ export default function AppShell({ children, interviewerOnly = false }: { childr
     },
     { label: "Candidates", href: "/candidates", children: [{ label: "All Candidates" }, { label: "Talent Pipeline" }] },
     { label: "Insights", href: "/interviews", children: [{ label: "Candidates" }, { label: "Interviews" }, { label: "Users" }, { label: "Reports" }] },
-    { label: "Settings", href: "/settings", children: [{ label: "Templates" }, { label: "Stages" }] }
+    { label: "Settings", href: "/settings", children: [{ label: "Company Settings", href: "/settings" }, { label: "Stages", href: "/stages" }] }
   ];
 
   return (
-    <div className="grid min-h-screen md:grid-cols-[260px_1fr] bg-[#ece9dd] text-[#20231f]">
+    <div className="grid min-h-screen md:grid-cols-[220px_1fr] bg-[#ece9dd] text-[#20231f]">
       <aside className="border-r border-[#2f5048] bg-[#23443d] text-[#d9e7e0]">
-        <div className="flex h-14 items-center border-b border-[#2f5048] px-4">
+        <div className="flex h-14 items-center border-b border-[#2f5048] px-3">
           <div className="flex items-center gap-2">
-            <div className="h-2.5 w-2.5 rounded-sm bg-[#ea7c55]" />
+            <img
+              src={company.logoUrl || "/NAAS-Logo.png"}
+              alt={`${company.companyName} logo`}
+              width={30}
+              height={30}
+              className="h-8 w-8 rounded-md bg-white/10 object-contain p-0.5"
+              onError={(e) => {
+                const target = e.currentTarget;
+                target.onerror = null;
+                target.src = "/NAAS-Logo.png";
+              }}
+            />
             <span className="text-sm font-semibold tracking-wide">Recruitment</span>
           </div>
         </div>
 
         {!interviewerOnly ? (
-          <nav className="space-y-2 px-3 py-3">
+          <nav className="space-y-2 px-2 py-3">
             {adminMenu.map((item) => (
               <div key={item.href} className="space-y-1">
                 <Link

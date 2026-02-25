@@ -24,3 +24,30 @@ input, select, textarea {
 button {
   @apply rounded-md px-3 py-2;
 }
+
+.rich-editor-content p {
+  margin: 0.25rem 0;
+}
+
+.rich-editor-content ul {
+  list-style: disc;
+  margin: 0.25rem 0 0.25rem 1.25rem;
+}
+
+.rich-editor-content ol {
+  list-style: decimal;
+  margin: 0.25rem 0 0.25rem 1.25rem;
+}
+
+.rich-editor-content h2 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0.25rem 0;
+}
+
+.rich-editor-content blockquote {
+  border-left: 3px solid #cbd5e1;
+  margin: 0.25rem 0;
+  padding-left: 0.75rem;
+  color: #475569;
+}

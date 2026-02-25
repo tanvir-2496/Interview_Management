@@ -17,6 +17,11 @@ public class JobUpsertRequestValidator : AbstractValidator<JobUpsertRequest>
             .GreaterThanOrEqualTo(x => x.SalaryRangeMin)
             .When(x => !x.IsSalaryNegotiable);
         RuleFor(x => x.VacancyCount).GreaterThan(0);
+        RuleForEach(x => x.InterviewStages!).ChildRules(stage =>
+        {
+            stage.RuleFor(s => s.StageName).NotEmpty().MaximumLength(120);
+            stage.RuleFor(s => s.StageOrder).GreaterThan(0);
+        }).When(x => x.InterviewStages is not null);
     }
 }
 

@@ -232,6 +232,21 @@ public static class SeedData
             );
         }
 
+        if (!db.CompanyProfiles.Any())
+        {
+            db.CompanyProfiles.Add(new CompanyProfile
+            {
+                CompanyName = "NAAS Solutions Limited",
+                Location = "Dhaka, Bangladesh",
+                Address = "H#3 (4th Floor), R#3, Block #B, Rampura, Banasree, Dhaka.",
+                ContactNumber = "+880 1841-428736",
+                ContactEmail = "info@naasbd.com",
+                WebsiteUrl = "https://naasbd.com/",
+                Description = "NAAS Solutions Limited is a technology-driven company focused on secure and scalable software products. We work with modern engineering practices and client-centric delivery to build meaningful digital solutions for local and global markets.",
+                LogoUrl = "/NAAS-Logo.png"
+            });
+        }
+
         await db.SaveChangesAsync();
     }
 }

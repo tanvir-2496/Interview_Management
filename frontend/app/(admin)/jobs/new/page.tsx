@@ -4,7 +4,9 @@ import { useForm } from "react-hook-form";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
 import RichEditor from "@/components/RichEditor";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+const GLOBAL_STAGE_JOB_ID = "00000000-0000-0000-0000-000000000000";
 
 export default function NewJobPage() {
   const { register, handleSubmit, watch } = useForm<any>({
@@ -19,8 +21,44 @@ export default function NewJobPage() {
   const isSalaryNegotiable = watch("isSalaryNegotiable");
   const [descriptionHtml, setDescriptionHtml] = useState("<p>Job description</p>");
   const [requirementsHtml, setRequirementsHtml] = useState("<p>Requirements</p>");
+  const [availableStages, setAvailableStages] = useState<string[]>([]);
+  const [stageRows, setStageRows] = useState<string[]>([]);
   const [error, setError] = useState("");
   const router = useRouter();
+
+  useEffect(() => {
+    api.get("/api/settings/stages", { params: { jobId: GLOBAL_STAGE_JOB_ID } })
+      .then((r) => {
+        const items = (r.data ?? []) as Array<{ isActive?: boolean; stageOrder?: number; stageName?: string }>;
+        const names: string[] = Array.from(
+          new Set(
+            items
+              .filter((x) => x?.isActive)
+              .sort((a, b) => (a?.stageOrder ?? 0) - (b?.stageOrder ?? 0))
+              .map((x) => String(x?.stageName ?? "").trim())
+              .filter((x) => x.length > 0)
+          )
+        );
+        setAvailableStages(names);
+        setStageRows(names.length > 0 ? [names[0]] : []);
+      })
+      .catch(() => {
+        setAvailableStages([]);
+        setStageRows([]);
+      });
+  }, []);
+
+  const addStageRow = () => {
+    setStageRows((prev) => {
+      const used = new Set(prev.filter(Boolean));
+      const next = availableStages.find((x) => !used.has(x));
+      return next ? [...prev, next] : prev;
+    });
+  };
+  const updateStageRow = (index: number, value: string) =>
+    setStageRows((prev) => prev.map((item, i) => (i === index ? value : item)));
+  const removeStageRow = (index: number) =>
+    setStageRows((prev) => prev.filter((_, i) => i !== index));
 
   const onSubmit = handleSubmit(async (v) => {
     setError("");
@@ -39,6 +77,21 @@ export default function NewJobPage() {
         }
       }
 
+      if (availableStages.length === 0) {
+        setError("Please add stage list first from Settings > Stages.");
+        return;
+      }
+
+      const cleanStages = stageRows.map((s) => s.trim()).filter(Boolean);
+      if (cleanStages.length === 0) {
+        setError("At least one interview stage is required.");
+        return;
+      }
+      if (new Set(cleanStages).size !== cleanStages.length) {
+        setError("Duplicate interview stage is not allowed.");
+        return;
+      }
+
       const payload = {
         ...v,
         isSalaryNegotiable: isNegotiable,
@@ -51,7 +104,12 @@ export default function NewJobPage() {
         descriptionHtml,
         requirementsHtml,
         descriptionJson: "{}",
-        requirementsJson: "{}"
+        requirementsJson: "{}",
+        interviewStages: cleanStages.map((stageName, index) => ({
+          stageName,
+          stageOrder: index + 1,
+          isActive: true
+        }))
       };
       const res = await api.post("/api/jobs", payload);
       router.push(`/jobs/${res.data.id}`);
@@ -146,6 +204,52 @@ export default function NewJobPage() {
           <input type="number" placeholder="2" {...register("vacancyCount", { valueAsNumber: true })} />
         </label>
       </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold">Interview Stages</div>
+          <button
+            type="button"
+            className="border border-slate-300 bg-white text-slate-700 disabled:opacity-60"
+            onClick={addStageRow}
+            disabled={availableStages.length === 0 || stageRows.length >= availableStages.length}
+          >
+            Add Stage
+          </button>
+        </div>
+        {availableStages.length === 0 ? (
+          <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            No active stage found. Please add stages from Settings &gt; Stages.
+          </div>
+        ) : null}
+        <div className="space-y-2">
+          {stageRows.map((stage, index) => (
+            <div className="grid gap-2 md:grid-cols-[80px_1fr_auto]" key={`stage-row-${index}`}>
+              <input value={index + 1} readOnly />
+              <select
+                value={stage}
+                onChange={(e) => updateStageRow(index, e.target.value)}
+              >
+                <option value="">Select stage</option>
+                {availableStages
+                  .filter((item) => item === stage || !stageRows.some((x, i) => i !== index && x === item))
+                  .map((item) => (
+                    <option key={`${index}-${item}`} value={item}>{item}</option>
+                  ))}
+              </select>
+              <button
+                type="button"
+                className="bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-60"
+                onClick={() => removeStageRow(index)}
+                disabled={stageRows.length === 1}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div><div>Description</div><RichEditor value={descriptionHtml} onChange={setDescriptionHtml} /></div>
       <div><div>Requirements</div><RichEditor value={requirementsHtml} onChange={setRequirementsHtml} /></div>
       <button className="bg-brand-500 text-white" type="submit">Save</button>

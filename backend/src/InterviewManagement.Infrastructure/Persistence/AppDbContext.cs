@@ -29,6 +29,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Scorecard> Scorecards => Set<Scorecard>();
     public DbSet<ScorecardRating> ScorecardRatings => Set<ScorecardRating>();
     public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
+    public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
     public DbSet<EmailLog> EmailLogs => Set<EmailLog>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<ExternalCalendarEvent> ExternalCalendarEvents => Set<ExternalCalendarEvent>();

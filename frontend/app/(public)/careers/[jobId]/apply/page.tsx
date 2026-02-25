@@ -5,8 +5,8 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import api from "@/lib/api";
 import Link from "next/link";
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { defaultCompanyProfile, loadPublicCompanyProfile } from "@/lib/companyProfile";
 
 const schema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -25,6 +25,7 @@ const schema = z.object({
 
 export default function ApplyPage({ params }: { params: { jobId: string } }) {
   const [jobTitle, setJobTitle] = useState("Apply");
+  const [company, setCompany] = useState(defaultCompanyProfile);
   const currentYear = new Date().getFullYear();
   const passingYearOptions = [
     "Currently pursuing",
@@ -61,9 +62,10 @@ export default function ApplyPage({ params }: { params: { jobId: string } }) {
   };
 
   useEffect(() => {
-    api.get(`/api/public/jobs/${params.jobId}`)
-      .then((r) => setJobTitle(r.data?.title || "Apply"))
-      .catch(() => setJobTitle("Apply"));
+    Promise.allSettled([api.get(`/api/public/jobs/${params.jobId}`), loadPublicCompanyProfile()]).then((results) => {
+      if (results[0].status === "fulfilled") setJobTitle(results[0].value.data?.title || "Apply");
+      if (results[1].status === "fulfilled") setCompany(results[1].value);
+    });
   }, [params.jobId]);
 
   useEffect(() => {
@@ -139,10 +141,10 @@ export default function ApplyPage({ params }: { params: { jobId: string } }) {
       <section className="overflow-hidden rounded-2xl bg-gradient-to-r from-cyan-500 to-sky-500 p-4 text-white shadow-lg">
         <Link href="/" className="inline-flex items-center gap-3">
           <div className="rounded-xl bg-white/20 p-2">
-            <Image src="/NAAS-Logo.png" alt="NAAS Logo" width={36} height={36} />
+            <img src={company.logoUrl || "/NAAS-Logo.png"} alt={`${company.companyName} logo`} width={36} height={36} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold md:text-4xl">NAAS Solutions Limited</h1>
+            <h1 className="text-2xl font-bold md:text-4xl">{company.companyName}</h1>
             <p className="text-sm text-cyan-50">{jobTitle}</p>
           </div>
         </Link>
@@ -268,7 +270,7 @@ export default function ApplyPage({ params }: { params: { jobId: string } }) {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700">Have you interviewed with NAAS Solutions before? <span className="text-red-500">*</span></label>
+            <label className="text-sm font-semibold text-slate-700">Have you interviewed with {company.companyName} before? <span className="text-red-500">*</span></label>
             <div className="space-y-3">
               <label className="flex cursor-pointer items-center gap-2 rounded border border-slate-300 px-3 py-3">
                 <input className="h-4 w-4 !w-4 !px-0 !py-0" type="radio" value="yes" {...register("interviewedBefore")} />

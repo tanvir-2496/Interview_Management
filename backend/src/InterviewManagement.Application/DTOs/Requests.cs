@@ -3,6 +3,7 @@ namespace InterviewManagement.Application.DTOs;
 public record LoginRequest(string Email, string Password);
 public record AuthResponse(string AccessToken, string RefreshToken, DateTime ExpiresAtUtc, string[] Permissions);
 public record RefreshRequest(string RefreshToken);
+public record InterviewStageInputRequest(string StageName, int StageOrder, bool IsActive = true);
 
 public record JobUpsertRequest(
     string Title,
@@ -21,7 +22,8 @@ public record JobUpsertRequest(
     string DescriptionHtml,
     string RequirementsHtml,
     string DescriptionJson,
-    string RequirementsJson);
+    string RequirementsJson,
+    List<InterviewStageInputRequest>? InterviewStages = null);
 
 public record ApproveRejectRequest(string? Reason);
 public record PublicApplyRequest(string FullName, string Email, string Phone, string Source, bool OverrideDuplicate);

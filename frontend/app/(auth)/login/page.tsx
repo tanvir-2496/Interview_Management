@@ -3,13 +3,18 @@
 import { useForm } from "react-hook-form";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import Image from "next/image";
+import { useEffect, useState } from "react";
+import { defaultCompanyProfile, loadPublicCompanyProfile } from "@/lib/companyProfile";
 
 export default function LoginPage() {
   const { register, handleSubmit } = useForm<{ email: string; password: string }>();
   const router = useRouter();
   const [error, setError] = useState<string>("");
+  const [company, setCompany] = useState(defaultCompanyProfile);
+
+  useEffect(() => {
+    loadPublicCompanyProfile().then(setCompany).catch(() => setCompany(defaultCompanyProfile));
+  }, []);
 
   const onSubmit = handleSubmit(async (v) => {
     setError("");
@@ -64,10 +69,10 @@ export default function LoginPage() {
     <form className="card w-full max-w-md space-y-5 p-6" onSubmit={onSubmit}>
       <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
         <div className="rounded-lg bg-cyan-50 p-2 ring-1 ring-cyan-100">
-          <Image src="/NAAS-Logo.png" alt="NAAS Logo" width={42} height={42} />
+          <img src={company.logoUrl || "/NAAS-Logo.png"} alt={`${company.companyName} logo`} width={42} height={42} />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-slate-900">NAAS Solutions Limited</h1>
+          <h1 className="text-xl font-bold text-slate-900">{company.companyName}</h1>
           <p className="text-sm text-slate-500">Interview Management Portal</p>
         </div>
       </div>

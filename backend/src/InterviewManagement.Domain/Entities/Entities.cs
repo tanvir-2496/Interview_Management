@@ -220,6 +220,18 @@ public class EmailTemplate : BaseEntity
     public string Body { get; set; } = string.Empty;
 }
 
+public class CompanyProfile : BaseEntity
+{
+    public string CompanyName { get; set; } = string.Empty;
+    public string Location { get; set; } = string.Empty;
+    public string Address { get; set; } = string.Empty;
+    public string ContactNumber { get; set; } = string.Empty;
+    public string ContactEmail { get; set; } = string.Empty;
+    public string WebsiteUrl { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string LogoUrl { get; set; } = "/NAAS-Logo.png";
+}
+
 public class EmailLog : BaseEntity
 {
     public string ToEmail { get; set; } = string.Empty;

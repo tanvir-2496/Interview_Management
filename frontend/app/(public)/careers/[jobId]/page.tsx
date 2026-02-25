@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import Link from "next/link";
-import Image from "next/image";
+import { defaultCompanyProfile, loadPublicCompanyProfile } from "@/lib/companyProfile";
 
 type Job = {
   id: string;
@@ -39,15 +39,19 @@ function locationTypeText(v: number) {
 
 export default function CareerDetailPage({ params }: { params: { jobId: string } }) {
   const [job, setJob] = useState<Job | null>(null);
+  const [company, setCompany] = useState(defaultCompanyProfile);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api.get(`/api/public/jobs/${params.jobId}`)
-      .then((r) => {
-        setJob(r.data);
+    Promise.allSettled([api.get(`/api/public/jobs/${params.jobId}`), loadPublicCompanyProfile()]).then((results) => {
+      if (results[0].status === "fulfilled") {
+        setJob(results[0].value.data);
         setError("");
-      })
-      .catch(() => setError("Job details load করা যায়নি।"));
+      } else {
+        setError("Job details load korte parini.");
+      }
+      if (results[1].status === "fulfilled") setCompany(results[1].value);
+    });
   }, [params.jobId]);
 
   const skills = (job?.skillsCsv || "")
@@ -64,10 +68,10 @@ export default function CareerDetailPage({ params }: { params: { jobId: string }
         <div className="flex items-center gap-3">
           <Link href="/" className="flex items-center gap-3">
             <div className="rounded-xl bg-white/20 p-2">
-              <Image src="/NAAS-Logo.png" alt="NAAS Logo" width={40} height={40} />
+              <img src={company.logoUrl || "/NAAS-Logo.png"} alt={`${company.companyName} logo`} width={40} height={40} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">NAAS Solutions Limited</h1>
+              <h1 className="text-2xl font-bold">{company.companyName}</h1>
               <p className="text-sm text-cyan-50">{job.title}</p>
             </div>
           </Link>
@@ -77,10 +81,10 @@ export default function CareerDetailPage({ params }: { params: { jobId: string }
       <section className="grid gap-4 md:grid-cols-[1.1fr_1fr]">
         <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
           <div className="mb-4 flex items-center gap-3">
-            <Image src="/NAAS-Logo.png" alt="NAAS Logo" width={64} height={64} className="rounded-lg ring-1 ring-slate-200" />
+            <img src={company.logoUrl || "/NAAS-Logo.png"} alt={`${company.companyName} logo`} width={64} height={64} className="rounded-lg ring-1 ring-slate-200" />
             <div>
               <h2 className="text-3xl font-bold text-slate-900">{job.title}</h2>
-              <p className="text-sm text-slate-600">NAAS Solutions Limited · {job.locationText || "Dhaka, Bangladesh"}</p>
+              <p className="text-sm text-slate-600">{company.companyName} · {job.locationText || company.location}</p>
             </div>
           </div>
 
@@ -91,7 +95,7 @@ export default function CareerDetailPage({ params }: { params: { jobId: string }
             <p><span className="font-semibold">Salary:</span> {job.isSalaryNegotiable ? "Negotiable" : `${job.salaryRangeMin.toLocaleString()} - ${job.salaryRangeMax.toLocaleString()}`}</p>
             <p><span className="font-semibold">Work Mode:</span> {locationTypeText(job.locationType)}</p>
             <p><span className="font-semibold">Application Deadline:</span> {job.applicationDeadlineUtc ? new Date(job.applicationDeadlineUtc).toLocaleDateString() : "N/A"}</p>
-            <p><span className="font-semibold">Office Location:</span> {job.locationText || "Dhaka, Bangladesh"}</p>
+            <p><span className="font-semibold">Office Location:</span> {job.locationText || company.location}</p>
           </div>
 
           <div className="mt-5">
@@ -107,11 +111,7 @@ export default function CareerDetailPage({ params }: { params: { jobId: string }
         <div className="space-y-4">
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
             <h3 className="mb-2 text-3xl font-bold text-slate-900">Company Description</h3>
-            <p className="text-sm leading-7 text-slate-700">
-              NAAS Solutions Limited is a technology-driven company focused on secure and scalable software
-              products. We work with modern engineering practices and client-centric delivery to build meaningful
-              digital solutions for local and global markets.
-            </p>
+            <p className="text-sm leading-7 text-slate-700">{company.description}</p>
           </div>
 
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
@@ -150,7 +150,7 @@ export default function CareerDetailPage({ params }: { params: { jobId: string }
       </section>
 
       <section className="space-y-3">
-        <h3 className="text-3xl font-bold text-slate-900">Life At NAAS Solutions Limited</h3>
+        <h3 className="text-3xl font-bold text-slate-900">Life At {company.companyName}</h3>
         <div className="grid gap-3 md:grid-cols-3">
           <div className="h-44 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 p-4 text-white">Leadership & Vision</div>
           <div className="h-44 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 p-4 text-white">Team Culture</div>

@@ -39,7 +39,7 @@ public class CandidatesController(
     public async Task<IActionResult> List([FromQuery] string? search, [FromQuery] string? stage, [FromQuery] string? source, [FromQuery] Guid? jobId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         if (!currentUser.HasPermission("Candidates.View")) return Forbid();
-        var query = db.Candidates.AsQueryable();
+        var query = db.Candidates.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search)) query = query.Where(x => x.FullName.Contains(search) || x.Email.Contains(search) || x.Phone.Contains(search));
         if (!string.IsNullOrWhiteSpace(source) && Enum.TryParse<CandidateSource>(source, true, out var src)) query = query.Where(x => x.Source == src);
@@ -53,7 +53,41 @@ public class CandidatesController(
         }
 
         var total = await query.CountAsync();
-        var items = await query.OrderByDescending(x => x.CreatedAtUtc).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        var candidates = await query
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var candidateIds = candidates.Select(x => x.Id).ToList();
+        var appQuery = db.CandidateJobApplications.AsNoTracking().Where(x => candidateIds.Contains(x.CandidateId));
+        if (jobId.HasValue) appQuery = appQuery.Where(x => x.JobId == jobId.Value);
+
+        var latestApplicationByCandidate = await appQuery
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .GroupBy(x => x.CandidateId)
+            .Select(g => new
+            {
+                CandidateId = g.Key,
+                CurrentStage = g.Select(x => x.CurrentStage).FirstOrDefault(),
+                JobId = g.Select(x => x.JobId).FirstOrDefault()
+            })
+            .ToDictionaryAsync(x => x.CandidateId, x => new { x.CurrentStage, x.JobId });
+
+        var items = candidates.Select(c => new
+        {
+            c.Id,
+            c.FullName,
+            c.Email,
+            c.Phone,
+            c.Source,
+            c.YearsOfExperience,
+            c.ResumeParseStatus,
+            c.CreatedAtUtc,
+            CurrentStage = latestApplicationByCandidate.TryGetValue(c.Id, out var app) ? (app.CurrentStage ?? "Applied") : "Applied",
+            CurrentJobId = latestApplicationByCandidate.TryGetValue(c.Id, out var app2) ? app2.JobId : (Guid?)null
+        });
+
         return Ok(new { total, items });
     }
 
@@ -222,6 +256,81 @@ public class CandidatesController(
         return candidate is null ? NotFound() : Ok(candidate);
     }
 
+    [HttpGet("{id:guid}/applications")]
+    public async Task<IActionResult> Applications(Guid id)
+    {
+        if (!currentUser.HasPermission("Candidates.View")) return Forbid();
+        var candidateExists = await db.Candidates.AnyAsync(x => x.Id == id);
+        if (!candidateExists) return NotFound();
+
+        var items = await db.CandidateJobApplications
+            .AsNoTracking()
+            .Where(x => x.CandidateId == id)
+            .Join(
+                db.Jobs.AsNoTracking(),
+                app => app.JobId,
+                job => job.Id,
+                (app, job) => new
+                {
+                    ApplicationId = app.Id,
+                    app.JobId,
+                    JobTitle = job.Title,
+                    JobCode = job.JobCode,
+                    job.Department,
+                    job.LocationText,
+                    job.ApplicationDeadlineUtc,
+                    app.CurrentStage,
+                    app.Status,
+                    AppliedAtUtc = app.CreatedAtUtc
+                })
+            .OrderByDescending(x => x.AppliedAtUtc)
+            .ToListAsync();
+
+        return Ok(items);
+    }
+
+    [HttpGet("{id:guid}/resumes/latest")]
+    public async Task<IActionResult> LatestResume(Guid id)
+    {
+        if (!currentUser.HasPermission("Candidates.View")) return Forbid();
+        var candidateExists = await db.Candidates.AnyAsync(x => x.Id == id);
+        if (!candidateExists) return NotFound();
+
+        var resume = await db.CandidateResumes
+            .AsNoTracking()
+            .Where(x => x.CandidateId == id)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .FirstOrDefaultAsync();
+
+        if (resume is null) return NotFound();
+
+        return Ok(new
+        {
+            resume.Id,
+            resume.OriginalFileName,
+            resume.MimeType,
+            resume.SizeInBytes,
+            resume.CreatedAtUtc
+        });
+    }
+
+    [HttpGet("resumes/{resumeId:guid}/download")]
+    public async Task<IActionResult> DownloadResume(Guid resumeId)
+    {
+        if (!currentUser.HasPermission("Candidates.View")) return Forbid();
+
+        var resume = await db.CandidateResumes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == resumeId);
+        if (resume is null) return NotFound();
+
+        var uploadsRoot = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
+        var fullPath = Path.Combine(uploadsRoot, resume.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+        if (!System.IO.File.Exists(fullPath)) return NotFound("Resume file not found on disk.");
+
+        return PhysicalFile(fullPath, resume.MimeType, resume.OriginalFileName, enableRangeProcessing: true);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] Candidate req)
     {
@@ -296,10 +405,14 @@ public class CandidatesController(
         var tpl = await db.EmailTemplates.SingleOrDefaultAsync(x => x.TemplateKey == req.TemplateKey, ct);
         if (tpl is null) return BadRequest("Template not found.");
         var candidates = await db.Candidates.Where(x => req.CandidateIds.Contains(x.Id)).ToListAsync(ct);
+        var companyName = await db.CompanyProfiles
+            .OrderByDescending(x => x.UpdatedAtUtc ?? x.CreatedAtUtc)
+            .Select(x => x.CompanyName)
+            .FirstOrDefaultAsync(ct) ?? "Interview Management";
 
         foreach (var c in candidates)
         {
-            var body = tpl.Body.Replace("{{CandidateName}}", c.FullName).Replace("{{CompanyName}}", "Interview Management");
+            var body = tpl.Body.Replace("{{CandidateName}}", c.FullName).Replace("{{CompanyName}}", companyName);
             await emailService.SendAsync(c.Email, tpl.Subject, body, ct);
             db.EmailLogs.Add(new EmailLog { ToEmail = c.Email, Subject = tpl.Subject, Body = body, Success = true });
         }

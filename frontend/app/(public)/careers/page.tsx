@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import Link from "next/link";
 import Image from "next/image";
+import { defaultCompanyProfile, loadPublicCompanyProfile } from "@/lib/companyProfile";
 
 type Job = {
   id: string;
@@ -25,9 +26,13 @@ function employmentTypeText(v: number) {
 
 export default function CareersPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [company, setCompany] = useState(defaultCompanyProfile);
 
   useEffect(() => {
-    api.get("/api/public/jobs").then((r) => setJobs(r.data));
+    Promise.allSettled([api.get("/api/public/jobs"), loadPublicCompanyProfile()]).then((results) => {
+      if (results[0].status === "fulfilled") setJobs(results[0].value.data ?? []);
+      if (results[1].status === "fulfilled") setCompany(results[1].value);
+    });
   }, []);
 
   return (
@@ -36,9 +41,9 @@ export default function CareersPage() {
         <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-cyan-500 to-sky-500 p-4 text-white shadow-lg">
           <Link href="/" className="inline-flex items-center gap-3">
             <div className="rounded-xl bg-white/20 p-2">
-              <Image src="/NAAS-Logo.png" alt="NAAS Logo" width={36} height={36} />
+              <img src={company.logoUrl || "/NAAS-Logo.png"} alt={`${company.companyName} logo`} width={36} height={36} />
             </div>
-            <h1 className="text-2xl font-bold md:text-4xl">NAAS Solutions Limited</h1>
+            <h1 className="text-2xl font-bold md:text-4xl">{company.companyName}</h1>
           </Link>
         </div>
 
@@ -51,14 +56,14 @@ export default function CareersPage() {
           <div className="mx-3 -mt-8 rounded-2xl bg-white p-5 shadow-lg ring-1 ring-slate-200 md:mx-8 md:-mt-12 md:p-7">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <Image src="/NAAS-Logo.png" alt="NAAS Logo" width={64} height={64} className="rounded-lg ring-1 ring-slate-200" />
+                <img src={company.logoUrl || "/NAAS-Logo.png"} alt={`${company.companyName} logo`} width={64} height={64} className="rounded-lg ring-1 ring-slate-200" />
                 <div>
-                  <h2 className="text-3xl font-bold text-slate-900">NAAS Solutions Limited</h2>
-                  <p className="text-sm text-slate-600">Dhaka, Bangladesh</p>
+                  <h2 className="text-3xl font-bold text-slate-900">{company.companyName}</h2>
+                  <p className="text-sm text-slate-600">{company.location}</p>
                 </div>
               </div>
               <a
-                href="https://naasbd.com/"
+                href={company.websiteUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="rounded-md bg-cyan-500 px-5 py-2 font-medium text-white transition hover:bg-cyan-600"
@@ -67,15 +72,7 @@ export default function CareersPage() {
               </a>
             </div>
             <p className="mt-4 text-sm leading-7 text-slate-700">
-              NAAS have started our journey in ICT business with mobile content in 2006. Since then it has been
-              operating in content industry with excellent reputation and become the biggest mobile phone Content
-              Provider in the country. We provide mobile Value Added Services (VAS) for Channel-i and ATN Bangla
-              television channels, leading newspapers like the Prothom Alo and The Daily Star and popular radio
-              channels like ABC Radio and Radio Amaar. We have launched a Mobile TV service for the first time in
-              Bangladesh and introduced e-commerce sites with Channel-i and ATN Bangla. We have also provided
-              customized mobile phone based tracking applications to organizations like FAO (Food and Agriculture
-              Organization of the United Nations) and Group4securicor (G4S). In fact, Group4Securicor is using our
-              mobile application GMAS for security purposes of Standard Chartered Bank.
+              {company.description}
             </p>
           </div>
         </div>
@@ -85,13 +82,13 @@ export default function CareersPage() {
         <div className="relative overflow-hidden rounded-2xl bg-slate-900 p-6 text-white">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,.35),transparent_45%),radial-gradient(circle_at_80%_70%,rgba(56,189,248,.25),transparent_45%)]" />
           <div className="relative space-y-3">
-            <h2 className="text-2xl font-semibold">Join NAAS Solutions Team</h2>
+            <h2 className="text-2xl font-semibold">Join {company.companyName} Team</h2>
             <p className="max-w-2xl text-sm text-slate-200">
               We design and deliver secure, scalable digital products for regional and global clients.
               Explore open positions and apply directly from this portal.
             </p>
             <div className="flex flex-wrap gap-2 text-xs">
-              <span className="rounded-full bg-white/15 px-3 py-1">Dhaka, Bangladesh</span>
+              <span className="rounded-full bg-white/15 px-3 py-1">{company.location}</span>
               <span className="rounded-full bg-white/15 px-3 py-1">Physical Office</span>
               <span className="rounded-full bg-white/15 px-3 py-1">Product + Services</span>
             </div>
@@ -103,18 +100,18 @@ export default function CareersPage() {
           <div className="space-y-3 text-sm text-slate-100">
             <p>
               <span className="mr-2">📍</span>
-              H#3 (4th Floor), R#3, Block #B, Rampura, Banasree, Dhaka.
+              {company.address}
             </p>
             <p>
               <span className="mr-2">✉️</span>
-              info@naasbd.com
+              {company.contactEmail}
             </p>
             <p>
               <span className="mr-2">📞</span>
-              +880 1841-428736
+              {company.contactNumber}
             </p>
-            <a className="inline-block text-cyan-300 underline" href="https://naasbd.com/" target="_blank" rel="noreferrer">
-              https://naasbd.com/
+            <a className="inline-block text-cyan-300 underline" href={company.websiteUrl} target="_blank" rel="noreferrer">
+              {company.websiteUrl}
             </a>
           </div>
         </div>
@@ -135,7 +132,7 @@ export default function CareersPage() {
                     <h3 className="text-2xl font-semibold text-slate-900 hover:text-cyan-600">{j.title}</h3>
                   </Link>
                   <p className="mt-1 text-sm text-slate-600">
-                    NAAS Solutions Limited · {j.locationText || "Dhaka, Bangladesh"}
+                    {company.companyName} · {j.locationText || company.location}
                   </p>
                 </div>
                 <div className="text-sm text-slate-600">
@@ -155,7 +152,7 @@ export default function CareersPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-3xl font-bold text-slate-900">Life At NAAS</h2>
+        <h2 className="text-3xl font-bold text-slate-900">Life At {company.companyName}</h2>
         <div className="grid gap-3 md:grid-cols-3">
           <div className="h-44 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 p-4 text-white">Engineering Culture</div>
           <div className="h-44 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 p-4 text-white">Team Collaboration</div>

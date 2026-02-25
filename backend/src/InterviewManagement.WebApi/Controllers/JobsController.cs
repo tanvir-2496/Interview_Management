@@ -64,6 +64,22 @@ public class JobsController(AppDbContext db, ICurrentUserService currentUser) : 
             RequirementsJson = req.RequirementsJson
         };
         db.Jobs.Add(job);
+
+        var stageInputs = (req.InterviewStages ?? [])
+            .Where(x => !string.IsNullOrWhiteSpace(x.StageName))
+            .OrderBy(x => x.StageOrder)
+            .ToList();
+        var stageConfigs = stageInputs
+            .Select((x, index) => new JobStageConfig
+            {
+                JobId = job.Id,
+                StageName = x.StageName.Trim(),
+                StageOrder = x.StageOrder > 0 ? x.StageOrder : index + 1,
+                IsActive = x.IsActive
+            })
+            .ToList();
+        if (stageConfigs.Count > 0) db.JobStageConfigs.AddRange(stageConfigs);
+
         await db.SaveChangesAsync();
         await NotifyApproversForNewDraftJob(job);
         await db.SaveChangesAsync();
@@ -94,6 +110,28 @@ public class JobsController(AppDbContext db, ICurrentUserService currentUser) : 
         job.DescriptionJson = req.DescriptionJson;
         job.RequirementsJson = req.RequirementsJson;
         job.UpdatedAtUtc = DateTime.UtcNow;
+
+        if (req.InterviewStages is not null)
+        {
+            var existingStages = await db.JobStageConfigs.Where(x => x.JobId == id).ToListAsync();
+            if (existingStages.Count > 0) db.JobStageConfigs.RemoveRange(existingStages);
+
+            var stageInputs = req.InterviewStages
+                .Where(x => !string.IsNullOrWhiteSpace(x.StageName))
+                .OrderBy(x => x.StageOrder)
+                .ToList();
+            var stageConfigs = stageInputs
+                .Select((x, index) => new JobStageConfig
+                {
+                    JobId = id,
+                    StageName = x.StageName.Trim(),
+                    StageOrder = x.StageOrder > 0 ? x.StageOrder : index + 1,
+                    IsActive = x.IsActive
+                })
+                .ToList();
+            if (stageConfigs.Count > 0) db.JobStageConfigs.AddRange(stageConfigs);
+        }
+
         await db.SaveChangesAsync();
         return Ok(job);
     }
