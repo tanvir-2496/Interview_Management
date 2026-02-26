@@ -6,6 +6,9 @@ RUN dotnet publish ./src/InterviewManagement.WebApi/InterviewManagement.WebApi.c
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libreoffice-core libreoffice-writer fonts-dejavu \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/publish .
 EXPOSE 5000
 ENTRYPOINT ["dotnet", "InterviewManagement.WebApi.dll"]

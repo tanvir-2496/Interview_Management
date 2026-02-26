@@ -114,6 +114,11 @@ export default function NewJobPage() {
       const res = await api.post("/api/jobs", payload);
       router.push(`/jobs/${res.data.id}`);
     } catch (e: any) {
+      const rawData = e?.response?.data;
+      if (typeof rawData === "string" && rawData.trim().length > 0) {
+        setError(rawData);
+        return;
+      }
       const validationErrors = e?.response?.data?.errors;
       if (validationErrors && typeof validationErrors === "object") {
         const firstKey = Object.keys(validationErrors)[0];

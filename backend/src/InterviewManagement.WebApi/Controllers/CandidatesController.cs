@@ -7,6 +7,7 @@ using InterviewManagement.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
 
 namespace InterviewManagement.WebApi.Controllers;
 
@@ -34,6 +35,7 @@ public class CandidatesController(
     }
 
     private static readonly string[] AllowedExt = [".pdf", ".doc", ".docx"];
+    private static readonly SemaphoreSlim ResumePreviewSemaphore = new(1, 1);
 
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] string? search, [FromQuery] string? stage, [FromQuery] string? source, [FromQuery] Guid? jobId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
@@ -331,6 +333,63 @@ public class CandidatesController(
         return PhysicalFile(fullPath, resume.MimeType, resume.OriginalFileName, enableRangeProcessing: true);
     }
 
+    [HttpGet("resumes/{resumeId:guid}/preview")]
+    public async Task<IActionResult> PreviewResume(Guid resumeId)
+    {
+        if (!currentUser.HasPermission("Candidates.View")) return Forbid();
+
+        var resume = await db.CandidateResumes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == resumeId);
+        if (resume is null) return NotFound();
+
+        var uploadsRoot = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
+        var sourcePath = Path.Combine(uploadsRoot, resume.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+        if (!System.IO.File.Exists(sourcePath)) return NotFound("Resume file not found on disk.");
+
+        var ext = Path.GetExtension(resume.OriginalFileName).ToLowerInvariant();
+        if (ext == ".pdf")
+        {
+            return PhysicalFile(sourcePath, "application/pdf", enableRangeProcessing: true);
+        }
+
+        if (ext is not (".doc" or ".docx"))
+        {
+            return BadRequest("Preview is supported for PDF, DOC and DOCX only.");
+        }
+
+        var previewDirectory = Path.Combine(uploadsRoot, "previews");
+        Directory.CreateDirectory(previewDirectory);
+        var previewPath = Path.Combine(previewDirectory, $"{resume.Id}.pdf");
+
+        await ResumePreviewSemaphore.WaitAsync();
+        try
+        {
+            var sourceWriteTime = System.IO.File.GetLastWriteTimeUtc(sourcePath);
+            var needConvert = !System.IO.File.Exists(previewPath) ||
+                              System.IO.File.GetLastWriteTimeUtc(previewPath) < sourceWriteTime;
+            if (needConvert)
+            {
+                await ConvertOfficeDocumentToPdfAsync(sourcePath, ext, previewPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            return Problem($"Preview conversion failed: {ex.Message}");
+        }
+        finally
+        {
+            ResumePreviewSemaphore.Release();
+        }
+
+        if (!System.IO.File.Exists(previewPath))
+        {
+            return Problem("Preview file was not generated.");
+        }
+
+        return PhysicalFile(previewPath, "application/pdf", enableRangeProcessing: true);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] Candidate req)
     {
@@ -427,6 +486,75 @@ public class CandidatesController(
     {
         if (!currentUser.HasPermission("Candidates.View")) return Forbid();
         return Ok(await db.CandidateTimelineEvents.Where(x => x.CandidateId == id).OrderBy(x => x.CreatedAtUtc).ToListAsync());
+    }
+
+    private static async Task ConvertOfficeDocumentToPdfAsync(string sourcePath, string ext, string outputPdfPath)
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "interview-management-preview");
+        Directory.CreateDirectory(tempRoot);
+        var tempDir = Path.Combine(tempRoot, Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var tempInput = Path.Combine(tempDir, $"source{ext}");
+            var tempOutput = Path.Combine(tempDir, "source.pdf");
+            System.IO.File.Copy(sourcePath, tempInput, overwrite: true);
+
+            var processStart = new ProcessStartInfo
+            {
+                FileName = "soffice",
+                Arguments = $"--headless --convert-to pdf --outdir \"{tempDir}\" \"{tempInput}\"",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+
+            using var process = Process.Start(processStart);
+            if (process is null) throw new Exception("Could not start LibreOffice process.");
+
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+
+            var exited = await Task.Run(() => process.WaitForExit(120000));
+            if (!exited)
+            {
+                try { process.Kill(true); } catch { }
+                throw new Exception("LibreOffice conversion timed out.");
+            }
+
+            var stdOut = await outputTask;
+            var stdErr = await errorTask;
+            if (process.ExitCode != 0)
+            {
+                throw new Exception($"LibreOffice exited with code {process.ExitCode}. {stdErr} {stdOut}".Trim());
+            }
+
+            if (!System.IO.File.Exists(tempOutput))
+            {
+                throw new Exception("Converted PDF not found.");
+            }
+
+            var outputDirectory = Path.GetDirectoryName(outputPdfPath);
+            if (!string.IsNullOrWhiteSpace(outputDirectory))
+            {
+                Directory.CreateDirectory(outputDirectory);
+            }
+
+            System.IO.File.Copy(tempOutput, outputPdfPath, overwrite: true);
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+            catch
+            {
+                // Best-effort cleanup only.
+            }
+        }
     }
 }
 

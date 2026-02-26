@@ -98,6 +98,18 @@ function sourceLabel(source?: number) {
   return "Other";
 }
 
+function buildDownloadName(originalFileName: string, candidateName: string, jobTitle?: string) {
+  const safe = (value: string) => value.replace(/[<>:"/\\|?*\u0000-\u001F]+/g, " ").replace(/\s+/g, " ").trim();
+  const lastDot = originalFileName.lastIndexOf(".");
+  const hasExt = lastDot > 0 && lastDot < originalFileName.length - 1;
+  const ext = hasExt ? originalFileName.slice(lastDot) : "";
+
+  const namePart = safe(candidateName || "Candidate");
+  const jobPart = safe(jobTitle || "Job");
+
+  return `${namePart} - ${jobPart}${ext || ".pdf"}`;
+}
+
 export default function CandidateDetailPage({ params }: { params: { id: string } }) {
   const search = useSearchParams();
   const queryJobId = search.get("jobId") ?? "";
@@ -110,8 +122,9 @@ export default function CandidateDetailPage({ params }: { params: { id: string }
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [toast, setToast] = useState("");
   const [activeTab, setActiveTab] = useState<DetailTab>("Resume");
+  const [downloadingResume, setDownloadingResume] = useState(false);
+  const [previewMessage, setPreviewMessage] = useState("Resume preview not available.");
 
   const selectedApplication = useMemo(() => {
     if (applications.length === 0) return null;
@@ -149,30 +162,25 @@ export default function CandidateDetailPage({ params }: { params: { id: string }
     let objectUrl = "";
     if (!resumeMeta?.id) {
       setResumeUrl("");
+      setPreviewMessage("Resume preview not available.");
       return;
     }
 
-    api.get(`/api/candidates/resumes/${resumeMeta.id}/download`, { responseType: "blob" })
+    api.get(`/api/candidates/resumes/${resumeMeta.id}/preview`, { responseType: "blob" })
       .then((res) => {
         objectUrl = URL.createObjectURL(res.data);
         setResumeUrl(objectUrl);
+        setPreviewMessage("Resume preview not available.");
       })
-      .catch(() => setResumeUrl(""));
+      .catch((e: any) => {
+        setResumeUrl("");
+        setPreviewMessage(e?.response?.data?.detail || e?.response?.data?.message || "This file cannot be previewed. Please download it.");
+      });
 
     return () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [resumeMeta?.id]);
-
-  const parseResume = async () => {
-    try {
-      await api.post(`/api/candidates/${params.id}/parse-resume`);
-      setToast("Resume parsing queued.");
-      setTimeout(() => setToast(""), 2200);
-    } catch (e: any) {
-      setError(e?.response?.data?.detail || e?.response?.data?.message || "Parse request failed.");
-    }
-  };
+  }, [resumeMeta]);
 
   if (loading) {
     return (
@@ -192,11 +200,34 @@ export default function CandidateDetailPage({ params }: { params: { id: string }
 
   const stageLabel = selectedApplication?.currentStage ?? "Applied";
   const detailTabs: DetailTab[] = ["Application", "Resume", "Offers", "Scorecards", "Comments", "Interviews", "Messages"];
+  const downloadFileName = resumeMeta
+    ? buildDownloadName(resumeMeta.originalFileName, candidate.fullName, selectedApplication?.jobTitle)
+    : "resume.pdf";
+
+  const downloadResume = async () => {
+    if (!resumeMeta?.id) return;
+    setError("");
+    setDownloadingResume(true);
+    try {
+      const res = await api.get(`/api/candidates/resumes/${resumeMeta.id}/download`, { responseType: "blob" });
+      const url = URL.createObjectURL(res.data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = downloadFileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || e?.response?.data?.message || "Download failed.");
+    } finally {
+      setDownloadingResume(false);
+    }
+  };
 
   return (
     <div className="space-y-4 text-[#282c23]">
       {error ? <div className="rounded border border-red-200 bg-red-50 px-4 py-2 text-red-700">{error}</div> : null}
-      {toast ? <div className="rounded border border-emerald-200 bg-emerald-50 px-4 py-2 text-emerald-700">{toast}</div> : null}
 
       <div className="rounded border border-[#d6cfbc] bg-[#f4f1e6]">
         <div className="border-b border-[#ddd7c6] px-5 py-3 text-xs text-[#8d8970]">
@@ -300,16 +331,14 @@ export default function CandidateDetailPage({ params }: { params: { id: string }
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#ece6d6] px-4 py-3">
                     <h2 className="text-2xl font-semibold text-[#2b2f25]">Resume</h2>
                     <div className="flex items-center gap-2 text-xs">
-                      <button className="border border-[#c8c2b2] bg-white font-semibold text-[#5f6553]" onClick={parseResume}>Parse Resume</button>
-                      {resumeUrl ? (
-                        <a
-                          className="border border-[#2f4d43] bg-[#2f4d43] px-3 py-2 font-semibold text-white"
-                          href={resumeUrl}
-                          download={resumeMeta?.originalFileName || "resume"}
-                        >
-                          Download
-                        </a>
-                      ) : null}
+                      <button
+                        type="button"
+                        onClick={downloadResume}
+                        disabled={!resumeMeta?.id || downloadingResume}
+                        className="border border-[#2f4d43] bg-[#2f4d43] px-3 py-2 font-semibold text-white disabled:opacity-60"
+                      >
+                        {downloadingResume ? "Downloading..." : "Download"}
+                      </button>
                     </div>
                   </div>
 
@@ -326,7 +355,7 @@ export default function CandidateDetailPage({ params }: { params: { id: string }
                       />
                     ) : (
                       <div className="grid h-[420px] place-items-center border border-dashed border-[#cfc8b5] bg-[#fbf9f2] text-sm text-[#7d7a67]">
-                        Resume preview not available.
+                        {previewMessage}
                       </div>
                     )}
                   </div>

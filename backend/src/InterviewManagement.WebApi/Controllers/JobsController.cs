@@ -6,6 +6,7 @@ using InterviewManagement.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace InterviewManagement.WebApi.Controllers;
 
@@ -43,6 +44,10 @@ public class JobsController(AppDbContext db, ICurrentUserService currentUser) : 
     public async Task<IActionResult> Create([FromBody] JobUpsertRequest req)
     {
         if (!currentUser.HasPermission("Jobs.Create")) return Forbid();
+        var jobCode = req.JobCode.Trim();
+        var duplicateJobCode = await db.Jobs.AnyAsync(x => x.JobCode == jobCode);
+        if (duplicateJobCode) return Conflict("Job code already exists. Please use a unique job code.");
+
         var job = new Job
         {
             Title = req.Title,
@@ -55,7 +60,7 @@ public class JobsController(AppDbContext db, ICurrentUserService currentUser) : 
             LocationText = req.LocationText,
             EmploymentType = (EmploymentType)req.EmploymentType,
             ExperienceLevel = (ExperienceLevel)req.ExperienceLevel,
-            JobCode = req.JobCode,
+            JobCode = jobCode,
             VacancyCount = req.VacancyCount,
             ApplicationDeadlineUtc = req.ApplicationDeadlineUtc,
             DescriptionHtml = req.DescriptionHtml,
@@ -80,7 +85,15 @@ public class JobsController(AppDbContext db, ICurrentUserService currentUser) : 
             .ToList();
         if (stageConfigs.Count > 0) db.JobStageConfigs.AddRange(stageConfigs);
 
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg && pg.SqlState == "23505" && pg.ConstraintName == "IX_Jobs_JobCode")
+        {
+            return Conflict("Job code already exists. Please use a unique job code.");
+        }
+
         await NotifyApproversForNewDraftJob(job);
         await db.SaveChangesAsync();
         return CreatedAtAction(nameof(Get), new { id = job.Id }, job);
@@ -92,6 +105,10 @@ public class JobsController(AppDbContext db, ICurrentUserService currentUser) : 
         if (!currentUser.HasPermission("Jobs.Edit")) return Forbid();
         var job = await db.Jobs.FindAsync(id);
         if (job is null) return NotFound();
+        var jobCode = req.JobCode.Trim();
+        var duplicateJobCode = await db.Jobs.AnyAsync(x => x.Id != id && x.JobCode == jobCode);
+        if (duplicateJobCode) return Conflict("Job code already exists. Please use a unique job code.");
+
         job.Title = req.Title;
         job.Department = req.Department;
         job.SkillsCsv = req.SkillsCsv;
@@ -102,7 +119,7 @@ public class JobsController(AppDbContext db, ICurrentUserService currentUser) : 
         job.LocationText = req.LocationText;
         job.EmploymentType = (EmploymentType)req.EmploymentType;
         job.ExperienceLevel = (ExperienceLevel)req.ExperienceLevel;
-        job.JobCode = req.JobCode;
+        job.JobCode = jobCode;
         job.VacancyCount = req.VacancyCount;
         job.ApplicationDeadlineUtc = req.ApplicationDeadlineUtc;
         job.DescriptionHtml = req.DescriptionHtml;
@@ -132,7 +149,15 @@ public class JobsController(AppDbContext db, ICurrentUserService currentUser) : 
             if (stageConfigs.Count > 0) db.JobStageConfigs.AddRange(stageConfigs);
         }
 
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg && pg.SqlState == "23505" && pg.ConstraintName == "IX_Jobs_JobCode")
+        {
+            return Conflict("Job code already exists. Please use a unique job code.");
+        }
+
         return Ok(job);
     }
 
