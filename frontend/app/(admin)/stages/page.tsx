@@ -13,6 +13,12 @@ type StageItem = {
 
 const GLOBAL_STAGE_JOB_ID = "00000000-0000-0000-0000-000000000000";
 
+function getErrorMessage(error: any, fallback: string) {
+  const data = error?.response?.data;
+  if (typeof data === "string" && data.trim()) return data;
+  return data?.title ?? data?.message ?? fallback;
+}
+
 export default function StagesPage() {
   const [stages, setStages] = useState<StageItem[]>([]);
   const [newStageName, setNewStageName] = useState("");
@@ -27,12 +33,12 @@ export default function StagesPage() {
   const loadStages = async () => {
     setError("");
     try {
-      const res = await api.get("/api/settings/stages");
+      const res = await api.get("/api/settings/stages", { params: { jobId: GLOBAL_STAGE_JOB_ID } });
       const ordered = ((res.data ?? []) as StageItem[]).sort((a, b) => a.stageOrder - b.stageOrder);
       setStages(ordered);
       setNewStageOrder((ordered[ordered.length - 1]?.stageOrder ?? 0) + 1);
     } catch (e: any) {
-      setError(e?.response?.data?.title ?? e?.response?.data?.message ?? "Failed to load stages.");
+      setError(getErrorMessage(e, "Failed to load stages."));
     }
   };
 
@@ -66,7 +72,7 @@ export default function StagesPage() {
       setNewStageName("");
       await loadStages();
     } catch (e: any) {
-      setError(e?.response?.data?.title ?? e?.response?.data?.message ?? "Failed to add stage.");
+      setError(getErrorMessage(e, "Failed to add stage."));
     } finally {
       setIsAddingStage(false);
     }
@@ -97,7 +103,7 @@ export default function StagesPage() {
       setEditingStageId(null);
       await loadStages();
     } catch (e: any) {
-      setError(e?.response?.data?.title ?? e?.response?.data?.message ?? "Failed to update stage.");
+      setError(getErrorMessage(e, "Failed to update stage."));
     }
   };
 
@@ -108,7 +114,7 @@ export default function StagesPage() {
       if (editingStageId === id) setEditingStageId(null);
       await loadStages();
     } catch (e: any) {
-      setError(e?.response?.data?.title ?? e?.response?.data?.message ?? "Failed to delete stage.");
+      setError(getErrorMessage(e, "Failed to delete stage."));
     }
   };
 

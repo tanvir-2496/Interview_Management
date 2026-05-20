@@ -52,15 +52,19 @@ public class ScorecardsController(AppDbContext db, ICurrentUserService currentUs
         var canViewAll = currentUser.HasPermission("Interviews.View");
         if (!assigned && !canViewAll) return Forbid();
 
-        var scorecards = await db.Scorecards.Where(x => x.InterviewSessionId == interviewSessionId)
+        var scorecards = (await db.Scorecards
+            .Include(x => x.Ratings)
+            .Where(x => x.InterviewSessionId == interviewSessionId)
+            .ToListAsync())
             .Select(s => new
             {
                 s.Id,
                 s.InterviewerId,
                 s.PrivateNotes,
                 s.Recommendation,
-                Ratings = db.ScorecardRatings.Where(r => r.ScorecardId == s.Id).Select(r => new { r.Criterion, r.Score })
-            }).ToListAsync();
+                Ratings = s.Ratings.Select(r => new { r.Criterion, r.Score }).ToList()
+            })
+            .ToList();
 
         if (assigned && !canViewAll)
             return Ok(new { session.Id, session.Stage, session.StartAtUtc, session.EndAtUtc, scorecards });

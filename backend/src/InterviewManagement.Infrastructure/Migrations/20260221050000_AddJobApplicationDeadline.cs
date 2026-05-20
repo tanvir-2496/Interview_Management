@@ -1,10 +1,14 @@
 using System;
+using InterviewManagement.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace InterviewManagement.Infrastructure.Migrations
 {
+    [DbContext(typeof(AppDbContext))]
     [Migration("20260221050000_AddJobApplicationDeadline")]
     public partial class AddJobApplicationDeadline : Migration
     {

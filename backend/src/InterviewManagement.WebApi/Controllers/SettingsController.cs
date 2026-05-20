@@ -12,6 +12,8 @@ namespace InterviewManagement.WebApi.Controllers;
 [Route("api/settings")]
 public class SettingsController(AppDbContext db, ICurrentUserService currentUser) : ControllerBase
 {
+    private static readonly Guid GlobalStageJobId = Guid.Empty;
+
     public class CompanyProfileUpsertRequest
     {
         public string CompanyName { get; set; } = string.Empty;
@@ -89,7 +91,8 @@ public class SettingsController(AppDbContext db, ICurrentUserService currentUser
         var canManageStages = currentUser.HasPermission("Settings.ManageStages");
         var canCreateOrEditJob = currentUser.HasPermission("Jobs.Create") || currentUser.HasPermission("Jobs.Edit");
         if (!canManageStages && !canCreateOrEditJob) return Forbid();
-        var items = await db.JobStageConfigs.Where(x => !jobId.HasValue || x.JobId == jobId.Value).OrderBy(x => x.StageOrder).ToListAsync();
+        var targetJobId = jobId ?? GlobalStageJobId;
+        var items = await db.JobStageConfigs.Where(x => x.JobId == targetJobId).OrderBy(x => x.StageOrder).ToListAsync();
         return Ok(items);
     }
 
@@ -97,6 +100,14 @@ public class SettingsController(AppDbContext db, ICurrentUserService currentUser
     public async Task<IActionResult> CreateStage([FromBody] JobStageConfig req)
     {
         if (!currentUser.HasPermission("Settings.ManageStages")) return Forbid();
+        req.JobId = req.JobId == default ? GlobalStageJobId : req.JobId;
+        req.StageName = req.StageName.Trim();
+        if (string.IsNullOrWhiteSpace(req.StageName)) return BadRequest("Stage name is required.");
+
+        var normalizedName = req.StageName.ToLower();
+        var duplicate = await db.JobStageConfigs.AnyAsync(x => x.JobId == req.JobId && x.StageName.ToLower() == normalizedName);
+        if (duplicate) return Conflict("This stage already exists in the stage list.");
+
         db.JobStageConfigs.Add(req);
         await db.SaveChangesAsync();
         return Ok(req);
@@ -108,7 +119,14 @@ public class SettingsController(AppDbContext db, ICurrentUserService currentUser
         if (!currentUser.HasPermission("Settings.ManageStages")) return Forbid();
         var item = await db.JobStageConfigs.FindAsync(id);
         if (item is null) return NotFound();
-        item.StageName = req.StageName;
+        var stageName = req.StageName.Trim();
+        if (string.IsNullOrWhiteSpace(stageName)) return BadRequest("Stage name is required.");
+
+        var normalizedName = stageName.ToLower();
+        var duplicate = await db.JobStageConfigs.AnyAsync(x => x.Id != id && x.JobId == item.JobId && x.StageName.ToLower() == normalizedName);
+        if (duplicate) return Conflict("This stage already exists in the stage list.");
+
+        item.StageName = stageName;
         item.StageOrder = req.StageOrder;
         item.IsActive = req.IsActive;
         await db.SaveChangesAsync();
